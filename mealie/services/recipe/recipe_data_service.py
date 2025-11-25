@@ -105,6 +105,28 @@ class RecipeDataService(BaseService):
 
         return image_path
 
+    def write_step_image(
+        self, file_data: bytes | Path, extension: str, file_slug: str, image_dir: Path | None = None
+    ) -> Path:
+        if not image_dir:
+            image_dir = self.dir_image
+
+        extension = extension.replace(".", "")
+        image_path = image_dir.joinpath(f"{file_slug}.{extension}")
+
+        self.logger.info(f"Writing Image URL: {image_path}")
+
+        if isinstance(file_data, Path):
+            shutil.copy2(file_data, image_path)
+        elif isinstance(file_data, bytes):
+            with open(image_path, "ab") as f:
+                f.write(file_data)
+        else:
+            with open(image_path, "ab") as f:
+                shutil.copyfileobj(file_data, f)
+
+        return image_path
+
     def delete_image(self, image_dir: Path | None = None):
         if not image_dir:
             image_dir = self.dir_image
@@ -165,3 +187,56 @@ class RecipeDataService(BaseService):
             self.logger.debug(f"File Name Suffix {file_path.suffix}")
             self.write_image(r.read(), file_path.suffix)
             file_path.unlink(missing_ok=True)
+
+    async def scrape_step_image(self, image_url: str | dict[str, str] | list[str], file_slug: str) -> str | None:
+        self.logger.info(f"Step Image URL: {image_url}")
+        user_agent = get_user_agents_manager().user_agents[0]
+
+        image_url_str = ""
+
+        if isinstance(image_url, str):  # Handles String Types
+            image_url_str = image_url
+
+        elif isinstance(image_url, list):  # Handles List Types
+            # Multiple images have been defined in the schema - usually different resolutions
+            # Typically would be in smallest->biggest order, but can't be certain so test each.
+            # 'Google will pick the best image to display in Search results based on the aspect ratio and resolution.'
+            image_url_str, _ = await largest_content_len(image_url)
+
+        elif isinstance(image_url, dict):  # Handles Dictionary Types
+            for key in image_url:
+                if key == "url":
+                    image_url_str = image_url.get("url", "")
+
+        if not image_url_str:
+            raise ValueError(f"image url could not be parsed from input: {image_url}")
+
+        ext = image_url_str.split(".")[-1]
+
+        if ext not in img.IMAGE_EXTENSIONS:
+            ext = "jpg"  # Guess the extension
+
+        file_name = f"{file_slug}.{ext}"
+        file_path = Recipe.directory_from_id(self.recipe_id).joinpath("assets", file_name)
+
+        async with AsyncClient(transport=AsyncSafeTransport()) as client:
+            try:
+                r = await client.get(image_url_str, headers={"User-Agent": user_agent})
+            except Exception:
+                self.logger.exception("Fatal Image Request Exception")
+                return None
+
+            if r.status_code != 200:
+                # TODO: Probably should throw an exception in this case as well, but before these changes
+                # we were returning None if it failed anyways.
+                return None
+
+            content_type = r.headers.get("content-type", "")
+
+            if "image" not in content_type:
+                self.logger.error(f"Content-Type: {content_type} is not an image")
+                raise NotAnImageError(f"Content-Type {content_type} is not an image")
+
+            self.logger.debug(f"File Name Suffix {file_path.suffix}")
+            self.write_step_image(r.read(), file_path.suffix, file_slug, self.dir_assets)
+            return file_slug + file_path.suffix

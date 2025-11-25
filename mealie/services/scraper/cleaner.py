@@ -1,3 +1,4 @@
+import ast
 import contextlib
 import functools
 import html
@@ -165,7 +166,10 @@ def clean_instructions(steps_object: list | dict | str, default: list | None = N
             # ]
             #
             return [
-                {"text": _sanitize_instruction_text(instruction["text"])}
+                {
+                    "text": _sanitize_instruction_text(instruction["text"]),
+                    "image": _get_cleaned_image_url(instruction["image"]),
+                }
                 for instruction in steps_object
                 if "text" in instruction and instruction["text"].strip()
             ]
@@ -206,9 +210,25 @@ def clean_instructions(steps_object: list | dict | str, default: list | None = N
             #   "Instruction B",
             # ]
             #
-            return [
-                {"text": _sanitize_instruction_text(instruction)} for instruction in steps_object if instruction.strip()
-            ]
+            new_instructions = []
+            for instruction_str in steps_object:
+                instruction_str = instruction_str.strip()
+                if not instruction_str:
+                    continue
+                if instruction_str.startswith("{"):
+                    try:
+                        data = ast.literal_eval(instruction_str)
+                        if isinstance(data, dict) and "text" in data:
+                            cleaned_instruction = {
+                                "text": _sanitize_instruction_text(data.get("text", "")),
+                                "image": _get_cleaned_image_url(data.get("image")),
+                            }
+                            new_instructions.append(cleaned_instruction)
+                            continue
+                    except (ValueError, SyntaxError):
+                        pass
+                new_instructions.append({"text": _sanitize_instruction_text(instruction_str), "image": ""})
+            return new_instructions
         case [{"@type": "HowToSection"}, *_] | [{"type": "HowToSection"}, *_]:
             # HowToSections should have the following layout,
             # {
@@ -230,6 +250,16 @@ def clean_instructions(steps_object: list | dict | str, default: list | None = N
             )
         case _:
             raise TypeError(f"Unexpected type for instructions: {type(steps_object)}, {steps_object}")
+
+
+def _get_cleaned_image_url(image_data: typing.Any) -> str:
+    """Helper to clean image data and return a single URL string or an empty string."""
+    if not image_data:
+        return ""
+    image_urls = clean_image(image_data)
+    if image_urls and image_urls[0] != "no image":
+        return image_urls[0]
+    return ""
 
 
 def _sanitize_instruction_text(line: str | dict) -> str:

@@ -19,5 +19,6 @@ class RecipeStep(MealieModel):
     title: str | None = ""  # This is the section title!!!
     summary: str | None = ""
     text: str
+    image: str | None = ""
     ingredient_references: list[IngredientReferences] = []
     model_config = ConfigDict(from_attributes=True)

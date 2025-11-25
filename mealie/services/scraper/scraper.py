@@ -8,7 +8,7 @@ from slugify import slugify
 from mealie.core.root_logger import get_logger
 from mealie.lang.providers import Translator
 from mealie.pkgs import cache
-from mealie.schema.recipe import Recipe
+from mealie.schema.recipe import Recipe, RecipeAsset
 from mealie.services.recipe.recipe_data_service import RecipeDataService
 from mealie.services.scraper.scraped_extras import ScrapedExtras
 
@@ -63,8 +63,22 @@ async def create_from_html(
 
         new_recipe.slug = slugify(new_recipe.name)
         new_recipe.image = cache.new_key(4)
+        for i, instruction_step in enumerate(new_recipe.recipe_instructions, 1):  # Add step numbering
+            if not instruction_step.image:
+                continue
+
+            file_slug = f"step_{i}"
+            file_name = await recipe_data_service.scrape_step_image(instruction_step.image, file_slug)
+            internal_image_url = f"/api/media/recipes/{new_recipe.id}/assets/{file_name}"
+
+            asset_in = RecipeAsset(name=file_slug, icon="mdi-file-image", file_name=file_name)
+            if new_recipe.assets is not None:
+                new_recipe.assets.append(asset_in)
+
+            instruction_step.text += f'<img src="{internal_image_url}" height="100%" width="100%"/>'
+
     except Exception as e:
-        recipe_data_service.logger.exception(f"Error Scraping Image: {e}")
+        recipe_data_service.logger.exception(f"Error Scraping Images: {e}")
         new_recipe.image = "no image"
 
     if new_recipe.name is None or new_recipe.name == "":

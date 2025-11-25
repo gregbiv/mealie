@@ -898,7 +898,7 @@ requires-dist = [
     { name = "python-slugify", specifier = ">=8.0.0,<9.0.0" },
     { name = "pyyaml", specifier = ">=6.0.1,<7.0.0" },
     { name = "rapidfuzz", specifier = ">=3.2.0,<4.0.0" },
-    { name = "recipe-scrapers", specifier = ">=15.0.0,<16.0.0" },
+    { name = "recipe-scrapers", git = "https://github.com/gregbiv/recipe-scrapers" },
     { name = "requests", specifier = ">=2.31.0,<3.0.0" },
     { name = "sqlalchemy", specifier = ">=2.0.0,<3.0.0" },
     { name = "text-unidecode", specifier = ">=1.3,<2.0" },
@@ -1627,16 +1627,12 @@ wheels = [
 
 [[package]]
 name = "recipe-scrapers"
-version = "15.9.0"
-source = { registry = "https://pypi.org/simple" }
+version = "15.10.0"
+source = { git = "https://github.com/gregbiv/recipe-scrapers#415005f762d68afe467f7f8b54e28e779753e7c4" }
 dependencies = [
     { name = "beautifulsoup4" },
     { name = "extruct" },
     { name = "isodate" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/e1/d8/ebe4bd4e9a0cee6986d4fd1f6a2f0c96753dbd9302021485d47d6596c6dc/recipe_scrapers-15.9.0.tar.gz", hash = "sha256:0235e9d1dd290be5ad5e58ba5be3ff51941c45efb7ec58f2872216fe501cd7d1", size = 128953, upload-time = "2025-08-09T12:59:15.471Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/0a/32/cbc15eb91fb30cb1a0eb2992f83ca3f1bfdb555343fe64a1a40cd61708df/recipe_scrapers-15.9.0-py3-none-any.whl", hash = "sha256:8f794090b46c18b9b863c39965adee0823253d366278d1fa2623235446caa701", size = 275107, upload-time = "2025-08-09T12:59:13.548Z" },
 ]
 
 [[package]]
